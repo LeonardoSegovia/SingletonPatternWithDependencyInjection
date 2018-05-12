@@ -1,0 +1,8 @@
+﻿Buenos Aires
+4000000
+Lima
+3000000
+Montevideo
+500000
+La Paz
+1000000
