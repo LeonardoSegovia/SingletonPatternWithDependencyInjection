@@ -1,7 +1,10 @@
 ﻿using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using NUnit.Framework;
+using Autofac;
 
 
 namespace SingletonPatternWithDependencyInjection
@@ -51,14 +54,43 @@ namespace SingletonPatternWithDependencyInjection
         public static IDatabase Instance => _instance.Value;
     }
 
+    public class OrdinaryDatabase : IDatabase
+    {
+        private Dictionary<string, int> _citiesPopulation;
+
+        public OrdinaryDatabase()
+        {
+            Console.WriteLine("Initializing database");
+
+            Console.WriteLine("Initializing database");
+
+            _citiesPopulation = new Dictionary<string, int>(); ;
+
+            var fullPath = new FileInfo(typeof(IDatabase).Assembly.Location).DirectoryName;
+
+            if (fullPath == null) return;
+
+            var citiesPopulationStrings = File.ReadAllLines(
+                Path.Combine(fullPath
+                    , "Cities.txt")
+            );
+
+            for (var i = 0; i < citiesPopulationStrings.Length; i += 2)
+                _citiesPopulation.Add(citiesPopulationStrings[i], Convert.ToInt32(citiesPopulationStrings[i + 1]));
+
+        }
+
+        public int GetPopulation(string name)
+        {
+            return _citiesPopulation[name];
+        }
+    }
+
     public class SingletonRecordFinder
     {
         public int TotalPopulation(IEnumerable<string> names)
         {
-            int result = 0;
-            foreach (var name in names)
-                result += SingletonDatabase.Instance.GetPopulation(name);
-            return result;
+            return names.Sum(name => SingletonDatabase.Instance.GetPopulation(name));
         }
     }
 
@@ -73,10 +105,7 @@ namespace SingletonPatternWithDependencyInjection
 
         public int GetTotalPopulation(IEnumerable<string> names)
         {
-            int result = 0;
-            foreach (var name in names)
-                result += _database.GetPopulation(name);
-            return result;
+            return names.Sum(name => _database.GetPopulation(name));
         }
     }
 
@@ -92,6 +121,7 @@ namespace SingletonPatternWithDependencyInjection
             }[name];
         }
     }
+
 
     [TestFixture]
     public class SingletonTests
@@ -110,7 +140,7 @@ namespace SingletonPatternWithDependencyInjection
         {
             var rf = new SingletonRecordFinder();
             var names = new[] { "Buenos Aires", "Lima" };
-            int tp = rf.TotalPopulation(names);
+            var tp = rf.TotalPopulation(names);
             Assert.That(tp, Is.EqualTo(4000000 + 3000000));
         }
 
@@ -123,7 +153,24 @@ namespace SingletonPatternWithDependencyInjection
 
             int tp = rf.GetTotalPopulation(names);
 
-            Assert.That(tp,Is.EqualTo(3));
+            Assert.That(tp, Is.EqualTo(3));
+        }
+
+        [Test]
+        public void DependencyInjectionTest()
+        {
+            var containerBuilder = new ContainerBuilder();
+
+            containerBuilder.RegisterType<DummyDatabase>().As<IDatabase>().SingleInstance();
+
+            containerBuilder.RegisterType<ConfigurableRecordFinder>();
+
+            using (var containerBuilded = containerBuilder.Build())
+            {
+                var rf = containerBuilded.Resolve<ConfigurableRecordFinder>();
+                
+            }
+            
         }
     }
 
